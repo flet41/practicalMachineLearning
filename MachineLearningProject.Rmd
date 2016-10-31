@@ -1,0 +1,144 @@
+
+Machine Learning Peer Reviewed Assignment
+=========================================
+
+### Executive Summary
+
+The purpose of this report is to document the construction of a model that predicts "how well" participants performed certain exercises.  We will split our data, build a random forest model, perform cross validation, and then finally predict on our final set observations.  We will then submit those prediction to the automated quiz. 
+
+### Background
+
+
+Background information provided for this project is as follows: 
+
+"Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset)."
+ 
+
+
+#### 1.  Get the data. 
+
+```{r}
+fileUrl<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+download.file(fileUrl, destfile="training.csv")
+fileUrl2<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(fileUrl2, destfile="testing.csv")
+```
+
+We will download the training and test sets from the website provided. 
+
+####2. Load Packages. 
+```{r}
+suppressMessages(library(caret)); suppressMessages(library(dplyr)) 
+suppressMessages(library(Hmisc));suppressMessages(library(ggplot2)); suppressMessages(library(RANN))
+```
+
+
+We will load all R Studio packages required for this project.
+
+#### 3.  Create the training and final test sets. 
+
+```{r}
+training<-read.csv("training.csv",na.strings = c('#DIV/0!', 'NA', '', NA))
+finalTesting<-read.csv("testing.csv", na.strings=c('#DIV/0!', 'NA', NA, ''))
+```
+
+
+#### 4. Process the data sets. 
+
+We must remove all missing, NA values,"#DIV/0" values, and non-measurement value columns.
+
+```{r}
+#Remove columns with mostly NA 
+training<-training[, complete.cases(t(training))]
+finalTesting<-finalTesting[, complete.cases(t(finalTesting))]
+
+#Remove non-measurement columns 
+
+training<-training[, -(1:5)]
+finalTesting<-finalTesting[, -(1:5)]
+
+```
+
+#### 5.  Split the training data set into a training and test set. 
+
+```{r}
+inTrain<-createDataPartition(y=training$classe, p=.7, list=FALSE)
+training<-training[inTrain, ]
+testing<-training[-inTrain, ]
+```
+
+
+
+#### 6.  Build a model.  
+
+We will use Random Forest initially.  We are choosing this model because of its high accuracy.  It also can handle large datasets with many variables.  
+
+We will use cross validation by using the train function in the caret package.  The caret packages used k-fold cross validation with 10 folds as a default selected below.     
+
+
+```{r echo=FALSE}
+set.seed(45621)
+
+mod1<-train(classe~., data=training,method="rf", 
+            trControl=trainControl(method="cv"),number=3, ntree=5,
+            importance=TRUE)
+mod1$finalModel
+```
+
+
+#### 7. Test the model we have built on the testing data set.  
+
+
+```{r}
+pred1<-predict(mod1, testing)
+```
+
+
+We will consider the accuracy, look for misclassifications, and observe the 
+importance of variables.  
+
+```{r}
+
+#get the accuracy 
+confusionMatrix(pred1, testing$classe)
+
+
+#look for misclassifications
+table(pred1, testing$classe)
+
+#look at variable importance
+varImp(mod1)
+```
+
+
+The model was so accurate that we will not need to build additional models.  We can proceed to generating predictions on the final test set. When in-sample model accuracy is high, overfitting might be the cause.  In this case, I do not think we have overfit given that the variables are classified so well.  I think the out-of-sample error rate will be very low-if not 0%.       
+
+
+#### 8.  Use model to form predictions on the final test set.
+
+
+```{r}
+#predict on the final testing set 
+
+predFinal<-predict(mod1, finalTesting)
+
+#generate predictions
+
+predFinal
+```
+
+
+We submitted our results and achieved 100% prediction accuracy.  
+
+
+
+
+
+
+
+
+
+
+
+
+
